@@ -3286,10 +3286,13 @@ f_stat(void)
     if (buf.st_mode & S_IFREG) {    /* if a regular file */
       v = allocate_empty_array(3);
       v->item[0].type = T_NUMBER;
+      v->item[0].subtype = 0;
       v->item[0].u.number = buf.st_size;
       v->item[1].type = T_NUMBER;
+      v->item[1].subtype = 0;
       v->item[1].u.number = buf.st_mtime;
       v->item[2].type = T_NUMBER;
+      v->item[2].subtype = 0;
       ob = find_object2(path);
       if (ob && !object_visible(ob)) {
         ob = 0;
@@ -4013,11 +4016,11 @@ void
 f_set_reset(void)
 {
   if (st_num_arg == 2) {
-    (sp - 1)->u.ob->next_reset = current_time + sp->u.number;
+    (sp - 1)->u.ob->next_reset = current_virtual_time + sp->u.number;
     free_object(&(--sp)->u.ob, "f_set_reset:1");
     sp--;
   } else {
-    sp->u.ob->next_reset = current_time + TIME_TO_RESET / 2 +
+    sp->u.ob->next_reset = current_virtual_time + TIME_TO_RESET / 2 +
                            random_number(TIME_TO_RESET / 2);
     free_object(&(sp--)->u.ob, "f_set_reset:2");
   }

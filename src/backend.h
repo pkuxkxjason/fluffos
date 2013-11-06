@@ -14,7 +14,7 @@
 /*
  * backend.c
  */
-extern long current_time;
+extern long current_virtual_time;
 extern object_t *current_heart_beat;
 extern error_context_t *current_error_context;
 extern int time_for_hb;
@@ -31,7 +31,8 @@ struct tick_event {
     callback(callback) {}
 };
 
-tick_event *add_tick_event(long tick, tick_event::callback_type callback);
+// Register a event to run after a certain number of seconds.
+tick_event *add_tick_event(int, tick_event::callback_type);
 void clear_tick_events();
 
 void backend(struct event_base *);

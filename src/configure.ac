@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([FluffOS],[v3.0-alpha7.4])
+AC_INIT([FluffOS],[v3.0-alpha8])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_CANONICAL_TARGET
@@ -44,6 +44,7 @@ AC_CHECK_SIZEOF([char *])
 AC_SEARCH_LIBS([sqrt], [m])
 AC_SEARCH_LIBS([crypt], [crypt])
 AC_SEARCH_LIBS([malloc], [malloc])
+AC_SEARCH_LIBS([backtrace], [execinfo])
 
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK

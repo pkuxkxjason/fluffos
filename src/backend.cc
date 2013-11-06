@@ -31,28 +31,29 @@ error_context_t *current_error_context = 0;
 /*
  * The 'current_time' is updated in the backend loop.
  */
-long current_time;
+long current_virtual_time;
 
 static std::multimap<long, tick_event *, std::less<long>> g_tick_queue;
 
-tick_event *add_tick_event(long delay_secs, tick_event::callback_type callback)
+tick_event *add_tick_event(int delay_secs,
+                           tick_event::callback_type callback)
 {
   auto event = new tick_event(callback);
-  g_tick_queue.insert(std::make_pair(current_time + delay_secs, event));
+  g_tick_queue.insert(std::make_pair(current_virtual_time + delay_secs, event));
   return event;
 }
 
 void call_tick_events()
 {
-  if(g_tick_queue.empty()) {
-    return ;
+  if (g_tick_queue.empty()) {
+    return;
   }
 
   auto iter_start = g_tick_queue.cbegin();
-  if (iter_start->first > current_time) {
+  if (iter_start->first > current_virtual_time) {
     return;
   }
-  auto iter_end = g_tick_queue.upper_bound(current_time);
+  auto iter_end = g_tick_queue.upper_bound(current_virtual_time);
 
   std::deque<tick_event *> all_events;
 
@@ -69,9 +70,8 @@ void call_tick_events()
   if (!save_context(&econ)) {
     fatal("BUG: call_tick_events can not save context!");
   }
-  for (auto iter = all_events.begin(); iter != all_events.end(); iter++) {
-    auto event = *iter;
-    if(event->valid) {
+  for (auto event: all_events) {
+    if (event->valid) {
       try {
         event->callback();
       } catch (const char *) {
@@ -83,13 +83,17 @@ void call_tick_events()
   pop_context(&econ);
 }
 
-void clear_tick_events() {
-  if(!g_tick_queue.empty()) {
-    for (auto iter = g_tick_queue.cbegin(); iter != g_tick_queue.cend(); iter++) {
-      delete iter->second;
+void clear_tick_events()
+{
+  int i = 0;
+  if (!g_tick_queue.empty()) {
+    for (auto iter: g_tick_queue) {
+      delete iter.second;
+      i++;
     }
     g_tick_queue.clear();
   }
+  debug_message("clear_tick_events: %d leftover events cleared.\n", i);
 }
 
 object_t *current_heart_beat;
@@ -117,8 +121,8 @@ void clear_state()
   previous_ob = 0;
   current_prog = 0;
   caller_type = 0;
-  reset_machine(0);   /* Pop down the stack. */
-}       /* clear_state() */
+  reset_machine(0); /* Pop down the stack. */
+} /* clear_state() */
 
 #if 0
 static void report_holes()
@@ -158,10 +162,13 @@ void backend(struct event_base *base)
   // Register various tick events
   add_tick_event(0, tick_event::callback_type(call_heart_beat));
   add_tick_event(5 * 60, tick_event::callback_type(look_for_objects_to_swap));
-  add_tick_event(60, tick_event::callback_type(std::bind(reclaim_objects, true)));
+  add_tick_event(60,
+                 tick_event::callback_type(std::bind(reclaim_objects, true)));
 #ifdef PACKAGE_MUDLIB_STATS
   add_tick_event(60 * 60, tick_event::callback_type(mudlib_stats_decay));
 #endif
+
+  current_virtual_time = get_current_time();
 
   while (1)
     try {
@@ -185,28 +192,29 @@ void backend(struct event_base *base)
           slow_shut_down(tmp);
         }
 
-        if (!g_tick_queue.empty()) {
-          call_tick_events();
-        }
-
 #if DEBUG
         try {
 #endif
-          /* Run event loop for at least 1 second, this current handles
+          /* Run event loop for at most 1 second, this current handles
            * listening socket events, user socket events, and lpc socket events.
            *
            * It currently also handles user command, longer term plan is to
            * merge all callbacks execution into tick event loop and move all
            * I/O to dedicated threads.
            */
-          run_for_at_least_one_second(base);
+          run_for_at_most_one_second(base);
 
 #if DEBUG
         } catch (...) { // catch everything
           fatal("BUG: jumped out of event loop!");
         }
 #endif
-        current_time++;
+        int64_t real_time = get_current_time();
+
+        while (current_virtual_time < real_time) {
+          call_tick_events();
+          current_virtual_time++;
+        }
 
 #ifdef PACKAGE_ASYNC
         // TODO: Move this into timer based.
@@ -216,8 +224,7 @@ void backend(struct event_base *base)
     } catch (const char *) {
       restore_context(&econ);
     }
-}       /* backend() */
-
+} /* backend() */
 
 /*
  * Despite the name, this routine takes care of several things.
@@ -254,14 +261,14 @@ static void look_for_objects_to_swap()
   while (1)
     try {
 
-      while ((ob = (object_t *)next_ob)) {
+      while ((ob = (object_t *) next_ob)) {
         int ready_for_clean_up = 0;
 
         if (ob->flags & O_DESTRUCTED) {
           if (last_good_ob->flags & O_DESTRUCTED) {
-            ob = obj_list;    /* restart */
+            ob = obj_list; /* restart */
           } else {
-            ob = (object_t *)last_good_ob;
+            ob = (object_t *) last_good_ob;
           }
         }
         next_ob = ob->next_all;
@@ -269,14 +276,15 @@ static void look_for_objects_to_swap()
         /*
          * Check reference time before reset() is called.
          */
-        if (current_time - ob->time_of_ref > time_to_clean_up) {
+        if (current_virtual_time - ob->time_of_ref >= time_to_clean_up) {
           ready_for_clean_up = 1;
         }
 #if !defined(NO_RESETS) && !defined(LAZY_RESETS)
         /*
          * Should this object have reset(1) called ?
          */
-        if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time)
+        if ((ob->flags & O_WILL_RESET)
+            && (ob->next_reset <= current_virtual_time)
             && !(ob->flags & O_RESET_STATE)) {
           debug(d_flag, "RESET /%s\n", ob->obname);
           set_eval(max_cost);
@@ -340,7 +348,7 @@ static void look_for_objects_to_swap()
 
     }
   pop_context(&econ);
-}       /* look_for_objects_to_swap() */
+} /* look_for_objects_to_swap() */
 
 /* Call all heart_beat() functions in all objects.  Also call the next reset,
  * and the call out.
@@ -368,13 +376,14 @@ static int num_hb_objs = 0;
 static int num_hb_to_do = 0;
 int time_for_hb = 0;
 
-static int num_hb_calls = 0;  /* starts */
-static float perc_hb_probes = 100.0;  /* decaying avge of how many complete */
+static int num_hb_calls = 0; /* starts */
+static float perc_hb_probes = 100.0; /* decaying avge of how many complete */
 
 void call_heart_beat()
 {
   // Register for next call
-  add_tick_event(HEARTBEAT_INTERVAL, tick_event::callback_type(call_heart_beat));
+  add_tick_event(HEARTBEAT_INTERVAL,
+                 tick_event::callback_type(call_heart_beat));
 
   object_t *ob;
   heart_beat_t *curr_hb;
@@ -418,8 +427,7 @@ void call_heart_beat()
             if (ob->interactive) { //note, NOT same as new_command_giver
               current_interactive = ob;
             }
-            call_direct(ob, ob->prog->heart_beat - 1,
-                        ORIGIN_DRIVER, 0);
+            call_direct(ob, ob->prog->heart_beat - 1, ORIGIN_DRIVER, 0);
             current_interactive = 0;
             pop_stack(); /* pop the return value */
             restore_command_giver();
@@ -444,14 +452,15 @@ void call_heart_beat()
   }
   current_prog = 0;
   current_heart_beat = 0;
-}       /* call_heart_beat() */
+} /* call_heart_beat() */
 
-int
-query_heart_beat(object_t *ob)
+int query_heart_beat(object_t *ob)
 {
   int index;
 
-  if (!(ob->flags & O_HEART_BEAT)) { return 0; }
+  if (!(ob->flags & O_HEART_BEAT)) {
+    return 0;
+  }
   index = num_hb_objs;
   while (index--) {
     if (heart_beats[index].ob == ob) {
@@ -459,7 +468,7 @@ query_heart_beat(object_t *ob)
     }
   }
   return 0;
-}       /* query_heart_beat() */
+} /* query_heart_beat() */
 
 /* add or remove an object from the heart beat list; does the major check...
  * If an object removes something from the list from within a heart beat,
@@ -470,16 +479,22 @@ int set_heart_beat(object_t *ob, int to)
 {
   int index;
 
-  if (ob->flags & O_DESTRUCTED) { return 0; }
+  if (ob->flags & O_DESTRUCTED) {
+    return 0;
+  }
 
   if (!to) {
     int num;
 
     index = num_hb_objs;
     while (index--) {
-      if (heart_beats[index].ob == ob) { break; }
+      if (heart_beats[index].ob == ob) {
+        break;
+      }
     }
-    if (index < 0) { return 0; }
+    if (index < 0) {
+      return 0;
+    }
 
     if (num_hb_to_do) {
       if (index <= heart_beat_index) {
@@ -491,7 +506,8 @@ int set_heart_beat(object_t *ob, int to)
     }
 
     if ((num = (num_hb_objs - (index + 1)))) {
-      memmove(heart_beats + index, heart_beats + (index + 1), num * sizeof(heart_beat_t));
+      memmove(heart_beats + index, heart_beats + (index + 1),
+              num * sizeof(heart_beat_t));
     }
 
     num_hb_objs--;
@@ -500,16 +516,20 @@ int set_heart_beat(object_t *ob, int to)
   }
 
   if (ob->flags & O_HEART_BEAT) {
-    if (to < 0) { return 0; }
+    if (to < 0) {
+      return 0;
+    }
 
     index = num_hb_objs;
     while (index--) {
       if (heart_beats[index].ob == ob) {
-        heart_beats[index].time_to_heart_beat = heart_beats[index].heart_beat_ticks = to;
+        heart_beats[index].time_to_heart_beat =
+          heart_beats[index].heart_beat_ticks = to;
         break;
       }
     }
-    DEBUG_CHECK(index < 0, "Couldn't find enabled object in heart_beat list!\n");
+    DEBUG_CHECK(index < 0,
+                "Couldn't find enabled object in heart_beat list!\n");
   } else {
     heart_beat_t *hb;
 
@@ -526,7 +546,9 @@ int set_heart_beat(object_t *ob, int to)
 
     hb = &heart_beats[num_hb_objs++];
     hb->ob = ob;
-    if (to < 0) { to = 1; }
+    if (to < 0) {
+      to = 1;
+    }
     hb->time_to_heart_beat = to;
     hb->heart_beat_ticks = to;
     ob->flags |= O_HEART_BEAT;
@@ -546,12 +568,12 @@ int heart_beat_status(outbuffer_t *ob, int verbose)
                 num_hb_objs, num_hb_calls);
 
     /* passing floats to varargs isn't highly portable so let sprintf
-    handle it */
+     handle it */
     sprintf(buf, "%.2f", perc_hb_probes);
     outbuf_addv(ob, "Percentage of HB calls completed last time: %s\n", buf);
   }
   return (0);
-}       /* heart_beat_status() */
+} /* heart_beat_status() */
 
 /* New version used when not in -o mode. The epilog() in master.c is
  * supposed to return an array of files (castles in 2.4.5) to load. The array
@@ -604,14 +626,14 @@ void preload_objects(int eflag)
         push_svalue(((array_t *)prefiles)->item + ix);
         (void) apply_master_ob(APPLY_PRELOAD, 1);
       }
-      free_array((array_t *)prefiles);
+      free_array((array_t *) prefiles);
       break;
     } catch (const char *) {
       restore_context(&econ);
       ix++;
     }
   pop_context(&econ);
-}       /* preload_objects() */
+} /* preload_objects() */
 
 /* All destructed objects are moved into a sperate linked list,
  * and deallocated after program execution.  */
@@ -628,7 +650,7 @@ void remove_destructed_objects()
     destruct2(ob);
   }
   obj_list_destruct = 0;
-}       /* remove_destructed_objects() */
+} /* remove_destructed_objects() */
 
 static double load_av = 0.0;
 
@@ -640,24 +662,23 @@ void update_load_av()
   static int acc = 0;
 
   acc++;
-  if (current_time == last_time) {
+  if (current_virtual_time == last_time) {
     return;
   }
-  n = current_time - last_time;
+  n = current_virtual_time - last_time;
   if (n < NUM_CONSTS) {
     c = consts[n];
   } else {
     c = exp(-n / 900.0);
   }
   load_av = c * load_av + acc * (1 - c) / n;
-  last_time = current_time;
+  last_time = current_virtual_time;
   acc = 0;
-}       /* update_load_av() */
+} /* update_load_av() */
 
 static double compile_av = 0.0;
 
-void
-update_compile_av(int lines)
+void update_compile_av(int lines)
 {
   static int last_time;
   int n;
@@ -665,19 +686,19 @@ update_compile_av(int lines)
   static int acc = 0;
 
   acc += lines;
-  if (current_time == last_time) {
+  if (current_virtual_time == last_time) {
     return;
   }
-  n = current_time - last_time;
+  n = current_virtual_time - last_time;
   if (n < NUM_CONSTS) {
     c = consts[n];
   } else {
     c = exp(-n / 900.0);
   }
   compile_av = c * compile_av + acc * (1 - c) / n;
-  last_time = current_time;
+  last_time = current_virtual_time;
   acc = 0;
-}       /* update_compile_av() */
+} /* update_compile_av() */
 
 char *query_load_av()
 {
@@ -685,7 +706,7 @@ char *query_load_av()
 
   sprintf(buff, "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
   return (buff);
-}       /* query_load_av() */
+} /* query_load_av() */
 
 #ifdef F_HEART_BEATS
 array_t *get_heart_beats()
