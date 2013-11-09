@@ -218,6 +218,7 @@
  *          instructions for details.                                       *
  ****************************************************************************/
 
+
 /*
  * Define this in order to use Fermat@Equilibria's MD5 based crypt() instead
  * of the operating system's.  It has the advantage of giving the same value
@@ -426,6 +427,12 @@
  *   microseconds will resolve to zero (0).
  */
 #undef PROFILE_FUNCTIONS
+
+/*
+ * Define the maximum number of external ports
+ *
+*/
+#define MAX_EXTERNAL_PORTS 5
 
 /****************************************************************************
  *                              PACKAGES                                    *

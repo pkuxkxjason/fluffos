@@ -2182,7 +2182,7 @@ void f_network_stats(void)
   mapping_t *m;
   int i, ports = 0;
 
-  for (i = 0;  i < 5;  i++)
+  for (i = 0;  i < MAX_EXTERNAL_PORTS;  i++)
     if (external_port[i].port) {
       ports += 4;
     }

@@ -236,7 +236,7 @@ void init_user_conn()
   have_fd6 = (setsockopt(6, SOL_SOCKET, SO_REUSEADDR, (char *) &optval,
                          sizeof(optval)) == 0);
 
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < MAX_EXTERNAL_PORTS; i++) {
 #ifdef F_NETWORK_STATS
     external_port[i].in_packets = 0;
     external_port[i].in_volume = 0;
@@ -366,7 +366,7 @@ void shutdown_external_ports()
 {
   int i;
 
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < MAX_EXTERNAL_PORTS; i++) {
     if (!external_port[i].port) { continue; }
     if (external_port[i].ev_read) event_free(external_port[i].ev_read);
     if (OS_socket_close(external_port[i].fd) == -1) {

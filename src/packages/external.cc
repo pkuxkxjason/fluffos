@@ -111,7 +111,7 @@ int external_start(int which, svalue_t *args,
     argv[i] = 0;
 
     close(sv[0]);
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < MAX_EXTERNAL_PORTS; i++)
       if (external_port[i].port) {
         close(external_port[i].fd);    //close external ports
       }
