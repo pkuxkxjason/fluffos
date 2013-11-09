@@ -58,11 +58,11 @@ void f_gb_to_utf8()
 
   iconv_t t = iconv_open("UTF-8", "gbk");
   char *translated = translate(t, text);
-	iconv_close(t);
+  iconv_close(t);
 
   pop_stack();
   copy_and_push_string(translated);
-	
+  FREE(translated);	
 }
 void f_utf8_to_gb()
 {
@@ -70,10 +70,11 @@ void f_utf8_to_gb()
 
   iconv_t t = iconv_open("gbk", "UTF-8");
   char *translated = translate(t, text);
-	iconv_close(t);
+  iconv_close(t);
 
   pop_stack();
   copy_and_push_string(translated);	
+  FREE(translated);
 }
 #endif
 
