@@ -27,7 +27,7 @@ typedef struct port_def_s {
   struct event *ev_read;
 } port_def_t;
 
-extern port_def_t external_port[5];
+extern port_def_t external_port[MAX_EXTERNAL_PORTS];
 #ifdef PACKAGE_EXTERNAL
 extern char *external_cmd[NUM_EXTERNAL_CMDS];
 #endif

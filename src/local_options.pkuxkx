@@ -588,6 +588,12 @@
  */
 #define REF_RESERVED_WORD
 
+/*
+ * Define the maximum number of external ports
+ *
+*/
+#define MAX_EXTERNAL_PORTS 5
+
 /****************************************************************************
  *                              PACKAGES                                    *
  *                              --------                                    *

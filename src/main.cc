@@ -21,7 +21,7 @@
 #include "event.h"
 #include "dns.h"
 
-port_def_t external_port[5];
+port_def_t external_port[MAX_EXTERNAL_PORTS];
 
 static int e_flag = 0;    /* Load empty, without preloads. */
 int t_flag = 0;     /* Disable heart beat and reset */

@@ -2206,7 +2206,7 @@ void f_network_stats(void)
 #endif
 
   if (ports) {
-    for (i = 0;  i < 5;  i++) {
+    for (i = 0;  i < MAX_EXTERNAL_PORTS;  i++) {
       if (external_port[i].port) {
         char buf[40];
 

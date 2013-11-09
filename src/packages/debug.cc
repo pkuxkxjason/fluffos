@@ -41,7 +41,7 @@ void f_thread()
   function_to_call_t cb;
   memset(&cb, 0, sizeof(function_to_call_t));
   process_efun_callback(0, &cb, F_THREAD);
-  for (i = 0; i < 5; i++)
+  for (i = 0; i < MAX_EXTERNAL_PORTS; i++)
     if (external_port[i].port) {
       close(external_port[i].fd);    //close external ports
     }

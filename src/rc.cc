@@ -309,7 +309,7 @@ void set_defaults(char *filename)
       fprintf(stderr, "Warning: external_port_1 already defined to be 'telnet %i' by the line\n    'port number : %i'; ignoring the line 'external_port_1 : %s'\n", port, port, tmp);
     }
   }
-  for (i = port_start; i < 5; i++) {
+  for (i = port_start; i < MAX_EXTERNAL_PORTS; i++) {
     external_port[i].kind = 0;
     external_port[i].fd = -1;
     sprintf(kind, "external_port_%i : %%[^\n]", i + 1);
