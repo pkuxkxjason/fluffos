@@ -592,7 +592,7 @@
  * Define the maximum number of external ports
  *
 */
-#define MAX_EXTERNAL_PORTS 5
+#define MAX_EXTERNAL_PORTS 7
 
 /****************************************************************************
  *                              PACKAGES                                    *
@@ -608,6 +608,9 @@
 #define PACKAGE_CONTRIB
 
 #define PACKAGE_TRIM
+
+#define PACKAGE_PKUXKX
+
 
 /* efuns that are only of use to those that know something about driver
    internals */
@@ -828,8 +831,8 @@
  */
 #define CFG_MAX_GLOBAL_VARIABLES        65536
 
-#define CFG_EVALUATOR_STACK_SIZE        3000
-#define CFG_COMPILER_STACK_SIZE         600
+#define CFG_EVALUATOR_STACK_SIZE        30000
+#define CFG_COMPILER_STACK_SIZE         6000
 #define CFG_MAX_CALL_DEPTH              150
 /* This must be one of 4, 16, 64, 256, 1024, 4096 */
 #define CFG_LIVING_HASH_SIZE            256

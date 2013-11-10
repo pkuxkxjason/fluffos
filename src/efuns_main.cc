@@ -1889,6 +1889,7 @@ void f_mud_status(void)
       outbuf_addv(&ob, "Open file test failed: %s\n", strerror(errno));
     }
 
+    outbuf_addv(&ob,"\nStack sp/max: %d/%d;already used slots::%d\n\n",sp,end_of_stack,CFG_EVALUATOR_STACK_SIZE- (end_of_stack - sp)/sizeof(svalue_t));
     outbuf_addv(&ob, "current working directory: %s\n\n",
                 get_current_dir(dir_buf, 1024));
     outbuf_add(&ob, "add_message statistics\n");
