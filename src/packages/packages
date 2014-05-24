@@ -1,0 +1,2 @@
+SRC=trim.cc uids.cc math.cc develop.cc external.cc contrib.cc sockets.cc pkuxkx.cc async.cc 
+OBJ=trim.$(O) uids.$(O) math.$(O) develop.$(O) external.$(O) contrib.$(O) sockets.$(O) pkuxkx.$(O) async.$(O) 

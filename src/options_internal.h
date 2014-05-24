@@ -214,8 +214,8 @@
  */
 #define CFG_MAX_GLOBAL_VARIABLES        65536
 
-#define CFG_EVALUATOR_STACK_SIZE        60000
-#define CFG_COMPILER_STACK_SIZE         6000
+#define CFG_EVALUATOR_STACK_SIZE        300000
+#define CFG_COMPILER_STACK_SIZE         60000
 #define CFG_MAX_CALL_DEPTH              150
 /* This must be one of 4, 16, 64, 256, 1024, 4096 */
 #define CFG_LIVING_HASH_SIZE            256
